@@ -17,8 +17,17 @@ import { handleHistoriesRequest } from "./handlers/histories.ts";
 import { handleConversationRequest } from "./handlers/conversations.ts";
 import { handleChatRequest } from "./handlers/chat.ts";
 import { handleAbortRequest } from "./handlers/abort.ts";
+import { handleListBranchesRequest } from "./handlers/git.ts";
+import {
+  handleStartTaskRequest,
+  handleCommitRequest,
+  handleStopTaskRequest,
+} from "./handlers/tasks.ts";
 import { logger } from "./utils/logger.ts";
 import { readBinaryFile } from "./utils/fs.ts";
+import { getTask } from "./services/taskStore.ts";
+import { daytona } from "./services/daytonaService.ts";
+import type { ChatRequest } from "../shared/types.ts";
 
 export interface AppConfig {
   debugMode: boolean;
@@ -70,7 +79,57 @@ export function createApp(
     handleAbortRequest(c, requestAbortControllers),
   );
 
-  app.post("/api/chat", (c) => handleChatRequest(c, requestAbortControllers));
+  // New Task and Git Routes
+  app.get("/api/git/branches", (c) => handleListBranchesRequest(c));
+  app.post("/api/tasks/start", (c) => handleStartTaskRequest(c));
+  app.post("/api/tasks/commit", (c) => handleCommitRequest(c));
+  app.post("/api/tasks/stop", (c) => handleStopTaskRequest(c));
+
+  // Modified chat handler with Daytona proxy support
+  app.post("/api/chat", async (c) => {
+    const chatRequest: ChatRequest = await c.req.json();
+    const { branchName } = chatRequest;
+
+    if (branchName) {
+      const task = getTask(branchName);
+      if (task) {
+        // Proxy to Daytona sandbox
+        try {
+          const sandbox = await daytona.get(task.sandboxId);
+          // Assuming the UI backend inside Daytona runs on port 8080
+          const preview = await sandbox.getPreviewLink(8080);
+          const targetUrl = new URL(preview.url);
+          targetUrl.pathname = "/api/chat";
+
+          const proxiedRequest = new Request(targetUrl.toString(), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-daytona-preview-token": preview.token,
+            },
+            body: JSON.stringify(chatRequest),
+          });
+
+          const response = await fetch(proxiedRequest);
+          return new Response(response.body, {
+            headers: {
+              "Content-Type": "application/x-ndjson",
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+            },
+          });
+        } catch (error) {
+          logger.api.error("Failed to proxy chat request to Daytona: {error}", {
+            error,
+          });
+          return c.json({ error: "Failed to connect to active task" }, 500);
+        }
+      }
+    }
+
+    // Fallback to original local behavior
+    return handleChatRequest(c, requestAbortControllers);
+  });
 
   // Static file serving with SPA fallback
   // Serve static assets (CSS, JS, images, etc.)

@@ -18,6 +18,8 @@ import { SettingsModal } from "./SettingsModal";
 import { HistoryButton } from "./chat/HistoryButton";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
+import { BranchSelector } from "./chat/BranchSelector";
+import { TaskControls } from "./chat/TaskControls";
 import { HistoryView } from "./HistoryView";
 import { getChatUrl, getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
@@ -27,9 +29,13 @@ import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
 export function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Branch and task management state
+  const selectedBranch = searchParams.get("branch") || "main"; // Default to main
+  const [isActiveTask, setIsActiveTask] = useState(false);
 
   // Extract and normalize working directory from URL
   const workingDirectory = (() => {
@@ -177,6 +183,7 @@ export function ChatPage() {
             allowedTools: tools || allowedTools,
             ...(workingDirectory ? { workingDirectory } : {}),
             permissionMode: overridePermissionMode || permissionMode,
+            branchName: selectedBranch,
           } as ChatRequest),
         });
 
@@ -246,6 +253,7 @@ export function ChatPage() {
       currentAssistantMessage,
       workingDirectory,
       permissionMode,
+      selectedBranch,
       generateRequestId,
       clearInput,
       startRequest,
@@ -384,6 +392,74 @@ export function ChatPage() {
     setIsSettingsOpen(false);
   }, []);
 
+  // Branch and task handlers
+  const handleSelectBranch = useCallback(
+    (branchName: string) => {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("branch", branchName);
+      setSearchParams(newParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleStartTask = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseBranch: selectedBranch,
+          workingDirectory,
+        }),
+      });
+      if (res.ok) {
+        const { branchName } = await res.json();
+        handleSelectBranch(branchName);
+      }
+    } catch (error) {
+      console.error("Failed to start task:", error);
+    }
+  }, [selectedBranch, workingDirectory, handleSelectBranch]);
+
+  const handleCommit = useCallback(async () => {
+    const message = prompt("Enter commit message:");
+    if (message) {
+      try {
+        await fetch("/api/tasks/commit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            branchName: selectedBranch,
+            message,
+            author: "AI Agent",
+            email: "ai@agent.com",
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to commit:", error);
+      }
+    }
+  }, [selectedBranch]);
+
+  const handleCloseTask = useCallback(async () => {
+    if (
+      confirm(
+        "Are you sure you want to close this task? The Daytona sandbox will be deleted.",
+      )
+    ) {
+      try {
+        await fetch("/api/tasks/stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ branchName: selectedBranch }),
+        });
+        handleSelectBranch("main");
+      } catch (error) {
+        console.error("Failed to close task:", error);
+      }
+    }
+  }, [selectedBranch, handleSelectBranch]);
+
   // Load projects to get encodedName mapping
   useEffect(() => {
     const loadProjects = async () => {
@@ -399,6 +475,26 @@ export function ChatPage() {
     };
     loadProjects();
   }, []);
+
+  // Check if current branch has an active task
+  useEffect(() => {
+    const checkActiveTask = async () => {
+      try {
+        const response = await fetch("/api/git/branches");
+        if (response.ok) {
+          const data = await response.json();
+          const current = data.branches.find(
+            (b: { name: string; isActive: boolean }) =>
+              b.name === selectedBranch,
+          );
+          setIsActiveTask(current?.isActive || false);
+        }
+      } catch (error) {
+        console.error("Failed to check active task:", error);
+      }
+    };
+    checkActiveTask();
+  }, [selectedBranch]);
 
   const handleBackToChat = useCallback(() => {
     navigate({ search: "" });
@@ -507,6 +603,24 @@ export function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <BranchSelector
+              selectedBranch={selectedBranch}
+              onSelectBranch={handleSelectBranch}
+            />
+            <button
+              onClick={handleStartTask}
+              className="p-2 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+              title="Start new task"
+            >
+              New Task ✨
+            </button>
+            {isActiveTask && (
+              <TaskControls
+                branchName={selectedBranch}
+                onCommit={handleCommit}
+                onClose={handleCloseTask}
+              />
+            )}
             {!isHistoryView && <HistoryButton onClick={handleHistoryClick} />}
             <SettingsButton onClick={handleSettingsClick} />
           </div>

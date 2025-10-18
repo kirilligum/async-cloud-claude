@@ -11,6 +11,7 @@ export interface ChatRequest {
   allowedTools?: string[];
   workingDirectory?: string;
   permissionMode?: "default" | "plan" | "acceptEdits";
+  branchName?: string;
 }
 
 export interface AbortRequest {
@@ -50,4 +51,19 @@ export interface ConversationHistory {
     endTime: string;
     messageCount: number;
   };
+}
+
+// Daytona integration types
+export interface ActiveTask {
+  branchName: string;
+  sandboxId: string;
+  status: "creating" | "ready" | "error" | "closing";
+}
+
+export interface BranchesResponse {
+  branches: {
+    name: string;
+    isActive: boolean;
+    taskStatus?: ActiveTask["status"];
+  }[];
 }
