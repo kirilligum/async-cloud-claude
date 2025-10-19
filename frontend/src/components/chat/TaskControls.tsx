@@ -24,9 +24,9 @@ export function TaskControls({
       <button
         onClick={onClose}
         className="p-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-        title="Close task"
+        title="Close task and delete sandbox"
       >
-        Close
+        Close Task
       </button>
     </div>
   );

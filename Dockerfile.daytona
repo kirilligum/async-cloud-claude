@@ -1,0 +1,19 @@
+FROM node:20-slim
+
+# Install git and other essentials
+RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Create a startup script
+COPY start-claude.sh /usr/local/bin/start-claude.sh
+RUN chmod +x /usr/local/bin/start-claude.sh
+
+# Set up a working directory
+WORKDIR /workspace
+
+# Expose the default port for claude-code-webui backend
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/start-claude.sh"]

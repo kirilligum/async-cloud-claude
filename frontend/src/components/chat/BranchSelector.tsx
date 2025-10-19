@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-
-interface Branch {
-  name: string;
-  isActive: boolean;
-}
+import { useState, useEffect } from "react";
+import type { BranchesResponse } from "../../../../shared/types";
 
 interface BranchSelectorProps {
   selectedBranch: string;
@@ -14,22 +10,14 @@ export function BranchSelector({
   selectedBranch,
   onSelectBranch,
 }: BranchSelectorProps) {
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branches, setBranches] = useState<BranchesResponse["branches"]>([]);
 
   useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        const response = await fetch("/api/git/branches");
-        if (response.ok) {
-          const data = await response.json();
-          setBranches(data.branches || []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch branches:", error);
-      }
-    };
-    fetchBranches();
-  }, []);
+    fetch("/api/git/branches")
+      .then((res) => res.json())
+      .then((data: BranchesResponse) => setBranches(data.branches))
+      .catch((error) => console.error("Failed to fetch git branches:", error));
+  }, [selectedBranch]); // Refetch when branch changes to update status
 
   return (
     <select
@@ -39,8 +27,8 @@ export function BranchSelector({
     >
       {branches.map((branch) => (
         <option key={branch.name} value={branch.name}>
+          {branch.isActive ? "☁️ " : ""}
           {branch.name}
-          {branch.isActive ? " (active)" : ""}
         </option>
       ))}
     </select>

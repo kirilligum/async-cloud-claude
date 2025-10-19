@@ -28,7 +28,7 @@ export async function handleStartTaskRequest(c: Context) {
     await runtime.runCommand("git", ["pull"]);
     await runtime.runCommand("git", ["checkout", "-b", newBranchName]);
 
-    // Step 2: Create Daytona Sandbox (using Ubuntu image instead of snapshot)
+    // Step 2: Create Daytona Sandbox (using Ubuntu image)
     const envVars: Record<string, string> = {
       GIT_BRANCH_NAME: newBranchName,
       GIT_REPO_URL: REPO_URL,
