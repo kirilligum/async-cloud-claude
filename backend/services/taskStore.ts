@@ -28,6 +28,16 @@ export function removeTask(branchName: string): void {
   activeTasks.delete(branchName);
 }
 
-export function listActiveBranches(): string[] {
-  return Array.from(activeTasks.keys());
+export function listActiveBranches(): Array<{
+  branchName: string;
+  task: ActiveTask;
+}> {
+  return Array.from(activeTasks.entries()).map(([branchName, task]) => ({
+    branchName,
+    task,
+  }));
+}
+
+export function getAllTasks(): ActiveTask[] {
+  return Array.from(activeTasks.values());
 }

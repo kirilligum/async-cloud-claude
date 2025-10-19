@@ -1,12 +1,14 @@
 interface TaskControlsProps {
   branchName: string;
   onCommit: () => void;
+  onPush: () => void;
   onClose: () => void;
 }
 
 export function TaskControls({
   branchName,
   onCommit,
+  onPush,
   onClose,
 }: TaskControlsProps) {
   return (
@@ -17,9 +19,16 @@ export function TaskControls({
       <button
         onClick={onCommit}
         className="p-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-        title="Commit changes"
+        title="Commit changes locally"
       >
         Commit
+      </button>
+      <button
+        onClick={onPush}
+        className="p-2 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
+        title="Push committed changes to remote"
+      >
+        Push
       </button>
       <button
         onClick={onClose}

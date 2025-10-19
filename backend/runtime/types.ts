@@ -21,7 +21,7 @@ export interface Runtime {
   runCommand(
     command: string,
     args: string[],
-    options?: { env?: Record<string, string> },
+    options?: { env?: Record<string, string>; cwd?: string },
   ): Promise<CommandResult>;
   findExecutable(name: string): Promise<string[]>;
 

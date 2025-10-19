@@ -1,5 +1,7 @@
 import { Daytona } from "@daytonaio/sdk";
-import { getEnv } from "../utils/os.ts";
 
-// Ensure DAYTONA_API_KEY is loaded from environment
-export const daytona = new Daytona({ apiKey: getEnv("DAYTONA_API_KEY") });
+// Daytona client using environment variables
+export const daytona = new Daytona({
+  apiKey: process.env.DAYTONA_API_KEY || "",
+  apiUrl: process.env.DAYTONA_API_URL,
+});

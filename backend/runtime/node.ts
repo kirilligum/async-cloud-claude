@@ -53,13 +53,14 @@ export class NodeRuntime implements Runtime {
   runCommand(
     command: string,
     args: string[],
-    options?: { env?: Record<string, string> },
+    options?: { env?: Record<string, string>; cwd?: string },
   ): Promise<CommandResult> {
     return new Promise((resolve) => {
       const isWindows = getPlatform() === "windows";
       const spawnOptions: SpawnOptions = {
         stdio: ["ignore", "pipe", "pipe"],
         env: options?.env ? { ...process.env, ...options.env } : process.env,
+        cwd: options?.cwd,
       };
 
       // On Windows, always use cmd.exe /c for all commands

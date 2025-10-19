@@ -49,7 +49,7 @@ export class DenoRuntime implements Runtime {
   async runCommand(
     command: string,
     args: string[],
-    options?: { env?: Record<string, string> },
+    options?: { env?: Record<string, string>; cwd?: string },
   ): Promise<CommandResult> {
     const platform = getPlatform();
 
@@ -67,6 +67,7 @@ export class DenoRuntime implements Runtime {
       stdout: "piped",
       stderr: "piped",
       env: options?.env,
+      cwd: options?.cwd,
     });
 
     const result = await cmd.output();

@@ -19,6 +19,7 @@ import { HistoryButton } from "./chat/HistoryButton";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
 import { BranchSelector } from "./chat/BranchSelector";
+import { BaseBranchSelector } from "./chat/BaseBranchSelector";
 import { TaskControls } from "./chat/TaskControls";
 import { HistoryView } from "./HistoryView";
 import { getChatUrl, getProjectsUrl } from "../config/api";
@@ -35,7 +36,9 @@ export function ChatPage() {
 
   // Branch and task management state
   const selectedBranch = searchParams.get("branch") || "main"; // Default to main
+  const [baseBranch, setBaseBranch] = useState("main"); // Base branch for new tasks
   const [isActiveTask, setIsActiveTask] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   // Extract and normalize working directory from URL
   const workingDirectory = (() => {
@@ -403,23 +406,32 @@ export function ChatPage() {
   );
 
   const handleStartTask = useCallback(async () => {
+    setIsCreatingTask(true);
     try {
       const res = await fetch("/api/tasks/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          baseBranch: selectedBranch,
+          baseBranch: baseBranch,
           workingDirectory,
         }),
       });
       if (res.ok) {
         const { branchName } = await res.json();
         handleSelectBranch(branchName);
+      } else {
+        const errorData = await res.json();
+        const errorMessage = errorData.error || "Failed to start task";
+        alert(`Failed to create new task: ${errorMessage}`);
+        console.error("Failed to start task:", errorMessage);
       }
     } catch (error) {
+      alert(`Failed to create new task: ${error}`);
       console.error("Failed to start task:", error);
+    } finally {
+      setIsCreatingTask(false);
     }
-  }, [selectedBranch, workingDirectory, handleSelectBranch]);
+  }, [baseBranch, workingDirectory, handleSelectBranch]);
 
   const handleCommit = useCallback(async () => {
     const message = prompt("Enter commit message:");
@@ -435,8 +447,26 @@ export function ChatPage() {
             email: "ai@agent.com",
           }),
         });
+        alert("Changes committed successfully!");
       } catch (error) {
         console.error("Failed to commit:", error);
+        alert("Failed to commit changes");
+      }
+    }
+  }, [selectedBranch]);
+
+  const handlePush = useCallback(async () => {
+    if (confirm("Push all committed changes to remote repository?")) {
+      try {
+        await fetch("/api/tasks/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ branchName: selectedBranch }),
+        });
+        alert("Changes pushed successfully!");
+      } catch (error) {
+        console.error("Failed to push:", error);
+        alert("Failed to push changes");
       }
     }
   }, [selectedBranch]);
@@ -561,7 +591,7 @@ export function ChatPage() {
                     className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
                     aria-label="Back to project selection"
                   >
-                    Claude Code Web UI
+                    claude code web ui
                   </button>
                   {(isHistoryView || sessionId) && (
                     <>
@@ -603,21 +633,34 @@ export function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <BaseBranchSelector
+              selectedBranch={baseBranch}
+              onSelectBranch={setBaseBranch}
+              workingDirectory={workingDirectory}
+            />
             <BranchSelector
               selectedBranch={selectedBranch}
               onSelectBranch={handleSelectBranch}
             />
             <button
               onClick={handleStartTask}
-              className="p-2 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-              title="Start new task"
+              disabled={isCreatingTask}
+              className={`p-2 text-sm rounded-md transition-colors ${
+                isCreatingTask
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-green-500 hover:bg-green-600"
+              } text-white`}
+              title={
+                isCreatingTask ? "Creating container..." : "Start new task"
+              }
             >
-              New Task ✨
+              {isCreatingTask ? "Creating... ⏳" : "New Task ✨"}
             </button>
             {isActiveTask && (
               <TaskControls
                 branchName={selectedBranch}
                 onCommit={handleCommit}
+                onPush={handlePush}
                 onClose={handleCloseTask}
               />
             )}

@@ -58,12 +58,14 @@ export interface ActiveTask {
   branchName: string;
   sandboxId: string;
   status: "creating" | "ready" | "error" | "closing";
+  repoPath?: string; // Path to repo inside the sandbox
 }
 
 export interface BranchesResponse {
   branches: {
     name: string;
     isActive: boolean;
+    sandboxId?: string;
     taskStatus?: ActiveTask["status"];
   }[];
 }
